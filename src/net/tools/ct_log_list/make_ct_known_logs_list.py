@@ -34,7 +34,7 @@ def _write_log_info_struct_definition(f):
         "This will prevent\n  // retrieval of inclusion proofs over DNS for "
         "SCTs from the log.\n"
         "  // https://github.com/google/certificate-transparency-rfcs/blob/"
-        "master/dns/draft-ct-over-dns.md.\n"
+        "main/dns/draft-ct-over-dns.md.\n"
         "  const char* log_dns_domain;\n"
         "};\n\n"
         )

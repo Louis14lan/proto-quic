@@ -5,7 +5,7 @@
 """Set of basic operations/utilities that are used by repacakging tool.
 
 These functions were mostly imported from build/scripts/common/chromium_utils
-and build/scripts/common/slave_utils.
+and build/scripts/common/subordinate_utils.
 """
 
 import errno

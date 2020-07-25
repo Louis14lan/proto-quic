@@ -58,7 +58,7 @@ def main():
   clang_sub_revision = args.clang_sub_revision
   # Needs shell=True on Windows due to git.bat in depot_tools.
   git_revision = subprocess.check_output(
-      ["git", "rev-parse", "origin/master"], shell=is_win).strip()
+      ["git", "rev-parse", "origin/main"], shell=is_win).strip()
   print "Making a patch for Clang revision r{}-{}".format(
       clang_revision, clang_sub_revision)
   print "Chrome revision: {}".format(git_revision)

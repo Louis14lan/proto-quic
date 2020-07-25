@@ -41,7 +41,7 @@ type Conn struct {
 	handshakeComplete    bool
 	skipEarlyData        bool // On a server, indicates that the client is sending early data that must be skipped over.
 	didResume            bool // whether this connection was a session resumption
-	extendedMasterSecret bool // whether this session used an extended master secret
+	extendedMainSecret bool // whether this session used an extended main secret
 	cipherSuite          *cipherSuite
 	ocspResponse         []byte // stapled OCSP response
 	sctList              []byte // signed certificate timestamp list
@@ -1454,7 +1454,7 @@ func (c *Conn) processTLS13NewSessionTicket(newSessionTicket *newSessionTicketMs
 		sessionTicket:      newSessionTicket.ticket,
 		vers:               c.vers,
 		cipherSuite:        cipherSuite.id,
-		masterSecret:       c.resumptionSecret,
+		mainSecret:       c.resumptionSecret,
 		serverCertificates: c.peerCertificates,
 		sctList:            c.sctList,
 		ocspResponse:       c.ocspResponse,
@@ -1824,7 +1824,7 @@ func (c *Conn) SendNewSessionTicket() error {
 	state := sessionState{
 		vers:               c.vers,
 		cipherSuite:        c.cipherSuite.id,
-		masterSecret:       c.resumptionSecret,
+		mainSecret:       c.resumptionSecret,
 		certificates:       peerCertificatesRaw,
 		ticketCreationTime: c.config.time(),
 		ticketExpiration:   c.config.time().Add(time.Duration(m.ticketLifetime) * time.Second),

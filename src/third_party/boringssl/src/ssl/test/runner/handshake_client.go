@@ -30,7 +30,7 @@ type clientHandshakeState struct {
 	suite         *cipherSuite
 	finishedHash  finishedHash
 	keyShares     map[CurveID]ecdhCurve
-	masterSecret  []byte
+	mainSecret  []byte
 	session       *ClientSessionState
 	finishedBytes []byte
 }
@@ -78,20 +78,20 @@ func (c *Conn) clientHandshake() error {
 		duplicateExtension:      c.config.Bugs.DuplicateExtension,
 		channelIDSupported:      c.config.ChannelID != nil,
 		npnAfterAlpn:            c.config.Bugs.SwapNPNAndALPN,
-		extendedMasterSecret:    maxVersion >= VersionTLS10,
+		extendedMainSecret:    maxVersion >= VersionTLS10,
 		srtpProtectionProfiles:  c.config.SRTPProtectionProfiles,
-		srtpMasterKeyIdentifier: c.config.Bugs.SRTPMasterKeyIdentifer,
+		srtpMainKeyIdentifier: c.config.Bugs.SRTPMainKeyIdentifer,
 		customExtension:         c.config.Bugs.CustomExtension,
 		pskBinderFirst:          c.config.Bugs.PSKBinderFirst,
 	}
 
-	disableEMS := c.config.Bugs.NoExtendedMasterSecret
+	disableEMS := c.config.Bugs.NoExtendedMainSecret
 	if c.cipherSuite != nil {
-		disableEMS = c.config.Bugs.NoExtendedMasterSecretOnRenegotiation
+		disableEMS = c.config.Bugs.NoExtendedMainSecretOnRenegotiation
 	}
 
 	if disableEMS {
-		hello.extendedMasterSecret = false
+		hello.extendedMainSecret = false
 	}
 
 	if c.config.Bugs.NoSupportedCurves {
@@ -358,7 +358,7 @@ NextCipherSuite:
 		c.writeV2Record(helloBytes)
 	} else {
 		if len(hello.pskIdentities) > 0 {
-			generatePSKBinders(hello, pskCipherSuite, session.masterSecret, []byte{}, c.config)
+			generatePSKBinders(hello, pskCipherSuite, session.mainSecret, []byte{}, c.config)
 		}
 		helloBytes = hello.marshal()
 
@@ -390,7 +390,7 @@ NextCipherSuite:
 	// Derive early write keys and set Conn state to allow early writes.
 	if sendEarlyData {
 		finishedHash := newFinishedHash(session.vers, pskCipherSuite)
-		finishedHash.addEntropy(session.masterSecret)
+		finishedHash.addEntropy(session.mainSecret)
 		finishedHash.Write(helloBytes)
 		earlyTrafficSecret := finishedHash.deriveSecret(earlyTrafficLabel)
 		c.out.useTrafficSecret(session.vers, pskCipherSuite, earlyTrafficSecret, clientWrite)
@@ -502,7 +502,7 @@ NextCipherSuite:
 		hello.raw = nil
 
 		if len(hello.pskIdentities) > 0 {
-			generatePSKBinders(hello, pskCipherSuite, session.masterSecret, append(helloBytes, helloRetryRequest.marshal()...), c.config)
+			generatePSKBinders(hello, pskCipherSuite, session.mainSecret, append(helloBytes, helloRetryRequest.marshal()...), c.config)
 		}
 		secondHelloBytes = hello.marshal()
 
@@ -656,7 +656,7 @@ NextCipherSuite:
 		}
 
 		c.didResume = isResume
-		c.exporterSecret = hs.masterSecret
+		c.exporterSecret = hs.mainSecret
 	}
 
 	c.handshakeComplete = true
@@ -691,7 +691,7 @@ func (hs *clientHandshakeState) doTLS13Handshake() error {
 			c.sendAlert(alertHandshakeFailure)
 			return errors.New("tls: server resumed an invalid session for the cipher suite")
 		}
-		hs.finishedHash.addEntropy(hs.session.masterSecret)
+		hs.finishedHash.addEntropy(hs.session.mainSecret)
 		c.didResume = true
 	} else {
 		hs.finishedHash.addEntropy(zeroSecret)
@@ -1106,7 +1106,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		}
 	}
 
-	preMasterSecret, ckx, err := keyAgreement.generateClientKeyExchange(c.config, hs.hello, leaf)
+	preMainSecret, ckx, err := keyAgreement.generateClientKeyExchange(c.config, hs.hello, leaf)
 	if err != nil {
 		c.sendAlert(alertInternalError)
 		return err
@@ -1118,14 +1118,14 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		c.writeRecord(recordTypeHandshake, ckx.marshal())
 	}
 
-	if hs.serverHello.extensions.extendedMasterSecret && c.vers >= VersionTLS10 {
-		hs.masterSecret = extendedMasterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret, hs.finishedHash)
-		c.extendedMasterSecret = true
+	if hs.serverHello.extensions.extendedMainSecret && c.vers >= VersionTLS10 {
+		hs.mainSecret = extendedMainFromPreMainSecret(c.vers, hs.suite, preMainSecret, hs.finishedHash)
+		c.extendedMainSecret = true
 	} else {
-		if c.config.Bugs.RequireExtendedMasterSecret {
-			return errors.New("tls: extended master secret required but not supported by peer")
+		if c.config.Bugs.RequireExtendedMainSecret {
+			return errors.New("tls: extended main secret required but not supported by peer")
 		}
-		hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret, hs.hello.random, hs.serverHello.random)
+		hs.mainSecret = mainFromPreMainSecret(c.vers, hs.suite, preMainSecret, hs.hello.random, hs.serverHello.random)
 	}
 
 	if chainToSend != nil {
@@ -1156,7 +1156,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			if !ok {
 				err = errors.New("unsupported signature type for client certificate")
 			} else {
-				digest := hs.finishedHash.hashForClientCertificateSSL3(hs.masterSecret)
+				digest := hs.finishedHash.hashForClientCertificateSSL3(hs.mainSecret)
 				if c.config.Bugs.InvalidSignature {
 					digest[0] ^= 0x80
 				}
@@ -1235,7 +1235,7 @@ func (hs *clientHandshakeState) establishKeys() error {
 	c := hs.c
 
 	clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
-		keysFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.hello.random, hs.serverHello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen(c.vers))
+		keysFromMainSecret(c.vers, hs.suite, hs.mainSecret, hs.hello.random, hs.serverHello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen(c.vers))
 	var clientCipher, serverCipher interface{}
 	var clientHash, serverHash macFunction
 	if hs.suite.cipher != nil {
@@ -1316,8 +1316,8 @@ func (hs *clientHandshakeState) processServerExtensions(serverExtensions *server
 		return errors.New("server advertised unrequested Channel ID extension")
 	}
 
-	if serverExtensions.extendedMasterSecret && c.vers >= VersionTLS13 {
-		return errors.New("tls: server advertised extended master secret over TLS 1.3")
+	if serverExtensions.extendedMainSecret && c.vers >= VersionTLS13 {
+		return errors.New("tls: server advertised extended main secret over TLS 1.3")
 	}
 
 	if serverExtensions.ticketSupported && c.vers >= VersionTLS13 {
@@ -1341,7 +1341,7 @@ func (hs *clientHandshakeState) processServerExtensions(serverExtensions *server
 	}
 
 	if serverExtensions.srtpProtectionProfile != 0 {
-		if serverExtensions.srtpMasterKeyIdentifier != "" {
+		if serverExtensions.srtpMainKeyIdentifier != "" {
 			return errors.New("tls: server selected SRTP MKI value")
 		}
 
@@ -1403,10 +1403,10 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 			return false, errors.New("tls: server sent OCSP extension on session resumption")
 		}
 
-		// Restore masterSecret and peerCerts from previous state
-		hs.masterSecret = hs.session.masterSecret
+		// Restore mainSecret and peerCerts from previous state
+		hs.mainSecret = hs.session.mainSecret
 		c.peerCertificates = hs.session.serverCertificates
-		c.extendedMasterSecret = hs.session.extendedMasterSecret
+		c.extendedMainSecret = hs.session.extendedMainSecret
 		c.sctList = hs.session.sctList
 		c.ocspResponse = hs.session.ocspResponse
 		hs.finishedHash.discardHandshakeBuffer()
@@ -1439,7 +1439,7 @@ func (hs *clientHandshakeState) readFinished(out []byte) error {
 	}
 
 	if c.config.Bugs.EarlyChangeCipherSpec == 0 {
-		verify := hs.finishedHash.serverSum(hs.masterSecret)
+		verify := hs.finishedHash.serverSum(hs.mainSecret)
 		if len(verify) != len(serverFinished.verifyData) ||
 			subtle.ConstantTimeCompare(verify, serverFinished.verifyData) != 1 {
 			c.sendAlert(alertHandshakeFailure)
@@ -1460,7 +1460,7 @@ func (hs *clientHandshakeState) readSessionTicket() error {
 	session := &ClientSessionState{
 		vers:               c.vers,
 		cipherSuite:        hs.suite.id,
-		masterSecret:       hs.masterSecret,
+		mainSecret:       hs.mainSecret,
 		handshakeHash:      hs.finishedHash.Sum(),
 		serverCertificates: c.peerCertificates,
 		sctList:            c.sctList,
@@ -1537,7 +1537,7 @@ func (hs *clientHandshakeState) sendFinished(out []byte, isResume bool) error {
 	if c.config.Bugs.EarlyChangeCipherSpec == 2 {
 		finished.verifyData = hs.finishedHash.clientSum(nil)
 	} else {
-		finished.verifyData = hs.finishedHash.clientSum(hs.masterSecret)
+		finished.verifyData = hs.finishedHash.clientSum(hs.mainSecret)
 	}
 	copy(out, finished.verifyData)
 	if c.config.Bugs.BadFinished {

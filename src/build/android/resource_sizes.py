@@ -634,7 +634,7 @@ def _PrintStaticInitializersCount(apk_path, apk_so_name, so_with_symbols_path,
   """
   # GetStaticInitializers uses get-static-initializers.py to get a list of all
   # static initializers. This does not work on all archs (particularly arm).
-  # This mostly copies infra/scripts/legacy/scripts/slave/chromium/sizes.py.
+  # This mostly copies infra/scripts/legacy/scripts/subordinate/chromium/sizes.py.
   print 'Finding static initializers in %s (can take a minute)' % apk_so_name
   with Unzip(apk_path, filename=apk_so_name) as unzipped_so:
     _VerifyLibBuildIdsMatch(tools_prefix, unzipped_so, so_with_symbols_path)

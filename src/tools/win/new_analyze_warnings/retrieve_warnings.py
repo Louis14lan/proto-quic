@@ -88,7 +88,7 @@ if off > len(key):
   command = r'c:\src\logdog_cipd_root\logdog.exe cat %s' % data_descriptor
   data = str(subprocess.check_output(command))
   if 'ANALYZE_REPO' in os.environ:
-    source_path = r'e:\b\build\slave\chromium_windows_analyze\build\src'
+    source_path = r'e:\b\build\subordinate\chromium_windows_analyze\build\src'
     dest_path = os.path.join(os.environ['ANALYZE_REPO'], 'src')
     data = data.replace(source_path, dest_path)
   output_name = 'analyze%04d_full.txt' % build_number

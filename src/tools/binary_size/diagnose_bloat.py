@@ -563,7 +563,7 @@ def _ValidateRevs(rev, reference_rev, subrepo):
   if rev == reference_rev:
     _Die('rev and reference-rev cannot be equal')
   no_obj_message = ('%s either doesn\'t exist or your local repo is out of '
-                    'date, try "git fetch origin master"')
+                    'date, try "git fetch origin main"')
   git_fatal(['cat-file', '-e', rev], no_obj_message % rev)
   git_fatal(['cat-file', '-e', reference_rev], no_obj_message % reference_rev)
   git_fatal(['merge-base', '--is-ancestor', reference_rev, rev],

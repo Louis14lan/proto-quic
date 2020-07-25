@@ -159,7 +159,7 @@ class GitApi(recipe_api.RecipeApi):
       # ex: ssh://host:repo/foobar/.git
       dir_path = dir_path or dir_path.rsplit('/', 1)[-1]
 
-      dir_path = self.m.path['slave_build'].join(dir_path)
+      dir_path = self.m.path['subordinate_build'].join(dir_path)
 
     if 'checkout' not in self.m.path:
       self.m.path['checkout'] = dir_path
@@ -184,16 +184,16 @@ class GitApi(recipe_api.RecipeApi):
     # 0) None. In this case, we default to properties['branch'].
     # 1) A 40-character SHA1 hash.
     # 2) A fully-qualifed arbitrary ref, e.g. 'refs/foo/bar/baz'.
-    # 3) A fully qualified branch name, e.g. 'refs/heads/master'.
+    # 3) A fully qualified branch name, e.g. 'refs/heads/main'.
     #    Chop off 'refs/heads' and now it matches case (4).
-    # 4) A branch name, e.g. 'master'.
+    # 4) A branch name, e.g. 'main'.
     # Note that 'FETCH_HEAD' can be many things (and therefore not a valid
     # checkout target) if many refs are fetched, but we only explicitly fetch
     # one ref here, so this is safe.
     fetch_args = []
     if not ref:                                  # Case 0
       fetch_remote = remote_name
-      fetch_ref = self.m.properties.get('branch') or 'master'
+      fetch_ref = self.m.properties.get('branch') or 'main'
       checkout_ref = 'FETCH_HEAD'
     elif self._GIT_HASH_RE.match(ref):        # Case 1.
       fetch_remote = remote_name
@@ -311,7 +311,7 @@ class GitApi(recipe_api.RecipeApi):
     """
     remote_name = remote_name or 'origin'
     try:
-      self('rebase', '%s/master' % remote_name,
+      self('rebase', '%s/main' % remote_name,
           name="%s rebase" % name_prefix, cwd=dir_path, **kwargs)
     except self.m.step.StepFailure:
       self('rebase', '--abort', name='%s rebase abort' % name_prefix,

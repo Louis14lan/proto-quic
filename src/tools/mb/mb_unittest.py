@@ -108,15 +108,15 @@ class FakeFile(object):
 
 TEST_CONFIG = """\
 {
-  'masters': {
+  'mains': {
     'chromium': {},
-    'fake_master': {
+    'fake_main': {
       'fake_builder': 'gyp_rel_bot',
       'fake_gn_builder': 'gn_rel_bot',
       'fake_gyp_crosscompile_builder': 'gyp_crosscompile',
       'fake_gn_debug_builder': 'gn_debug_goma',
       'fake_gyp_builder': 'gyp_debug',
-      'fake_gn_args_bot': '//build/args/bots/fake_master/fake_gn_args_bot.gn',
+      'fake_gn_args_bot': '//build/args/bots/fake_main/fake_gn_args_bot.gn',
       'fake_multi_phase': { 'phase_1': 'gn_phase_1', 'phase_2': 'gn_phase_2'},
       'fake_args_file': 'args_file_goma',
       'fake_args_file_twice': 'args_file_twice',
@@ -175,7 +175,7 @@ TEST_BAD_CONFIG = """\
     'gn_rel_bot_1': ['gn', 'rel', 'chrome_with_codecs'],
     'gn_rel_bot_2': ['gn', 'rel', 'bad_nested_config'],
   },
-  'masters': {
+  'mains': {
     'chromium': {
       'a': 'gn_rel_bot_1',
       'b': 'gn_rel_bot_2',
@@ -199,9 +199,9 @@ TEST_BAD_CONFIG = """\
 
 GYP_HACKS_CONFIG = """\
 {
-  'masters': {
+  'mains': {
     'chromium': {},
-    'fake_master': {
+    'fake_main': {
       'fake_builder': 'fake_config',
     },
   },
@@ -235,7 +235,7 @@ class UnitTest(unittest.TestCase):
         },
       }''')
     mbw.files.setdefault(
-        mbw.ToAbsPath('//build/args/bots/fake_master/fake_gn_args_bot.gn'),
+        mbw.ToAbsPath('//build/args/bots/fake_main/fake_gn_args_bot.gn'),
         'is_debug = false\n')
     if files:
       for path, contents in files.items():
@@ -335,16 +335,16 @@ class UnitTest(unittest.TestCase):
                   '--check\n', mbw.out)
 
     mbw = self.fake_mbw()
-    self.check(['gen', '-m', 'fake_master', '-b', 'fake_gn_args_bot',
+    self.check(['gen', '-m', 'fake_main', '-b', 'fake_gn_args_bot',
                 '//out/Debug'],
                mbw=mbw, ret=0)
     self.assertEqual(
         mbw.files['/fake_src/out/Debug/args.gn'],
-        'import("//build/args/bots/fake_master/fake_gn_args_bot.gn")\n')
+        'import("//build/args/bots/fake_main/fake_gn_args_bot.gn")\n')
 
   def test_gn_gen_args_file_mixins(self):
     mbw = self.fake_mbw()
-    self.check(['gen', '-m', 'fake_master', '-b', 'fake_args_file',
+    self.check(['gen', '-m', 'fake_main', '-b', 'fake_args_file',
                 '//out/Debug'], mbw=mbw, ret=0)
 
     self.assertEqual(
@@ -353,7 +353,7 @@ class UnitTest(unittest.TestCase):
          'use_goma = true\n'))
 
     mbw = self.fake_mbw()
-    self.check(['gen', '-m', 'fake_master', '-b', 'fake_args_file_twice',
+    self.check(['gen', '-m', 'fake_main', '-b', 'fake_args_file_twice',
                 '//out/Debug'], mbw=mbw, ret=1)
 
   def test_gn_gen_fails(self):
@@ -513,26 +513,26 @@ class UnitTest(unittest.TestCase):
 
   def test_multiple_phases(self):
     # Check that not passing a --phase to a multi-phase builder fails.
-    mbw = self.check(['lookup', '-m', 'fake_master', '-b', 'fake_multi_phase'],
+    mbw = self.check(['lookup', '-m', 'fake_main', '-b', 'fake_multi_phase'],
                      ret=1)
     self.assertIn('Must specify a build --phase', mbw.out)
 
     # Check that passing a --phase to a single-phase builder fails.
-    mbw = self.check(['lookup', '-m', 'fake_master', '-b', 'fake_gn_builder',
+    mbw = self.check(['lookup', '-m', 'fake_main', '-b', 'fake_gn_builder',
                       '--phase', 'phase_1'], ret=1)
     self.assertIn('Must not specify a build --phase', mbw.out)
 
     # Check that passing a wrong phase key to a multi-phase builder fails.
-    mbw = self.check(['lookup', '-m', 'fake_master', '-b', 'fake_multi_phase',
+    mbw = self.check(['lookup', '-m', 'fake_main', '-b', 'fake_multi_phase',
                       '--phase', 'wrong_phase'], ret=1)
     self.assertIn('Phase wrong_phase doesn\'t exist', mbw.out)
 
     # Check that passing a correct phase key to a multi-phase builder passes.
-    mbw = self.check(['lookup', '-m', 'fake_master', '-b', 'fake_multi_phase',
+    mbw = self.check(['lookup', '-m', 'fake_main', '-b', 'fake_multi_phase',
                       '--phase', 'phase_1'], ret=0)
     self.assertIn('phase = 1', mbw.out)
 
-    mbw = self.check(['lookup', '-m', 'fake_master', '-b', 'fake_multi_phase',
+    mbw = self.check(['lookup', '-m', 'fake_main', '-b', 'fake_multi_phase',
                       '--phase', 'phase_2'], ret=0)
     self.assertIn('phase = 2', mbw.out)
 

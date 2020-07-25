@@ -55,8 +55,8 @@ def _default_region(fqdn):
 def _default_network(host):
   try:
     # Regular expression that matches the vast majority of our host names.
-    # Matches everything of the form 'masterN', 'masterNa', and 'foo-xN'.
-    return re.match(r'^([\w-]*?-[acm]|master)(\d+)a?$', host).group(2)  # N
+    # Matches everything of the form 'mainN', 'mainNa', and 'foo-xN'.
+    return re.match(r'^([\w-]*?-[acm]|main)(\d+)a?$', host).group(2)  # N
   except AttributeError:
     return ''
 

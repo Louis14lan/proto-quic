@@ -212,7 +212,7 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn,
     if disable_channel_id:
       self.ssl_handshake_settings.enableChannelID = False
     if disable_ems:
-      self.ssl_handshake_settings.enableExtendedMasterSecret = False
+      self.ssl_handshake_settings.enableExtendedMainSecret = False
     self.ssl_handshake_settings.supportedTokenBindingParams = \
         token_binding_params
     self.ssl_handshake_settings.alpnProtos=alpn_protocols;
@@ -2034,7 +2034,7 @@ class ServerRunner(testserver_base.TestServerRunner):
                              stapled_ocsp_response,
                              self.options.alert_after_handshake,
                              self.options.disable_channel_id,
-                             self.options.disable_extended_master_secret,
+                             self.options.disable_extended_main_secret,
                              self.options.token_binding_params)
         print 'HTTPS server started on https://%s:%d...' % \
             (host, server.server_port)
@@ -2296,7 +2296,7 @@ class ServerRunner(testserver_base.TestServerRunner):
                                   help='If set, the FTP server will not create '
                                   'an anonymous user.')
     self.option_parser.add_option('--disable-channel-id', action='store_true')
-    self.option_parser.add_option('--disable-extended-master-secret',
+    self.option_parser.add_option('--disable-extended-main-secret',
                                   action='store_true')
     self.option_parser.add_option('--token-binding-params', action='append',
                                   default=[], type='int')

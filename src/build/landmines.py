@@ -31,11 +31,11 @@ def get_build_dir(src_dir):
   """
   Returns output directory absolute path dependent on build and targets.
   Examples:
-    r'c:\b\build\slave\win\build\src\out'
-    '/mnt/data/b/build/slave/linux/build/src/out'
-    '/b/build/slave/ios_rel_device/build/src/out'
+    r'c:\b\build\subordinate\win\build\src\out'
+    '/mnt/data/b/build/subordinate/linux/build/src/out'
+    '/b/build/subordinate/ios_rel_device/build/src/out'
 
-  Keep this function in sync with tools/build/scripts/slave/compile.py
+  Keep this function in sync with tools/build/scripts/subordinate/compile.py
   """
   if 'CHROMIUM_OUT_DIR' in os.environ:
     output_dir = os.environ.get('CHROMIUM_OUT_DIR').strip()

@@ -111,7 +111,7 @@ def run_runtest(cmd_args, runtest_args):
       '--target', cmd_args.build_config_fs,
       '--xvfb',
       '--builder-name', cmd_args.properties['buildername'],
-      '--slave-name', cmd_args.properties['slavename'],
+      '--subordinate-name', cmd_args.properties['subordinatename'],
       '--build-number', str(cmd_args.properties['buildnumber']),
       '--build-properties', json.dumps(cmd_args.properties),
   ] + runtest_args)

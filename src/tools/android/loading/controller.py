@@ -60,7 +60,7 @@ class ChromeControllerMetadataGatherer(object):
       def _GitCommand(subcmd):
         return subprocess.check_output(['git', '-C', _SRC_DIR] + subcmd).strip()
       try:
-        self._chromium_commit = _GitCommand(['merge-base', 'master', 'HEAD'])
+        self._chromium_commit = _GitCommand(['merge-base', 'main', 'HEAD'])
         if self._chromium_commit != _GitCommand(['rev-parse', 'HEAD']):
           self._chromium_commit = 'unknown'
       except subprocess.CalledProcessError:
