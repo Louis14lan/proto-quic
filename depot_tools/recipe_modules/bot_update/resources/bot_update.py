@@ -60,7 +60,7 @@ SCRIPTS_DIR = check_dir(
                   '..',      # recipe_modules
                   '..',      # depot_tools
                   '..',      # .recipe_deps
-                  '..',      # slave
+                  '..',      # subordinate
                   '..',      # scripts
                   '..',      # build_internal
                   '..',      # ROOT_DIR
@@ -77,7 +77,7 @@ BUILD_INTERNAL_DIR = check_dir(
     'build_internal', [
         path.join(ROOT_DIR, 'build_internal'),
         path.join(ROOT_DIR,      # .recipe_deps
-                  path.pardir,   # slave
+                  path.pardir,   # subordinate
                   path.pardir,   # scripts
                   path.pardir),  # build_internal
     ])
@@ -118,7 +118,7 @@ GIT_SVN_PROJECT_MAP = {
   'webkit': {
     'svn_url': 'svn://svn.chromium.org/blink',
     'branch_map': [
-      (r'trunk', r'refs/heads/master'),
+      (r'trunk', r'refs/heads/main'),
       (r'branches/([^/]+)', r'refs/branch-heads/\1'),
     ],
   },
@@ -126,14 +126,14 @@ GIT_SVN_PROJECT_MAP = {
     'svn_url': 'https://v8.googlecode.com/svn',
     'branch_map': [
       (r'trunk', r'refs/heads/candidates'),
-      (r'branches/bleeding_edge', r'refs/heads/master'),
+      (r'branches/bleeding_edge', r'refs/heads/main'),
       (r'branches/([^/]+)', r'refs/branch-heads/\1'),
     ],
   },
   'nacl': {
     'svn_url': 'svn://svn.chromium.org/native_client',
     'branch_map': [
-      (r'trunk/src/native_client', r'refs/heads/master'),
+      (r'trunk/src/native_client', r'refs/heads/main'),
     ],
   },
 }
@@ -180,8 +180,8 @@ These actions used to be taken care of by the "gclient revert" and "update"
 steps. However, those steps are known to be buggy and occasionally flaky. This
 step has two main advantages over them:
   * it only operates in Git, so the logic can be clearer and cleaner; and
-  * it is a slave-side script, so its behavior can be modified without
-    restarting the master.
+  * it is a subordinate-side script, so its behavior can be modified without
+    restarting the main.
 
 Why Git, you ask? Because that is the direction that the Chromium project is
 heading. This step is an integral part of the transition from using the SVN repo
@@ -190,16 +190,16 @@ we fully convert everything to Git. This message will get out of your way
 eventually, and the waterfall will be a happier place because of it.
 
 This step can be activated or deactivated independently on every builder on
-every master. When it is active, the "gclient revert" and "update" steps become
+every main. When it is active, the "gclient revert" and "update" steps become
 no-ops. When it is inactive, it prints this message, cleans up after itself, and
 lets everything else continue as though nothing has changed. Eventually, when
 everything is stable enough, this step will replace them entirely.
 
 Debugging information:
-(master/builder/slave may be unspecified on recipes)
-master: %(master)s
+(main/builder/subordinate may be unspecified on recipes)
+main: %(main)s
 builder: %(builder)s
-slave: %(slave)s
+subordinate: %(subordinate)s
 forced by recipes: %(recipe)s
 CURRENT_DIR: %(CURRENT_DIR)s
 BUILDER_DIR: %(BUILDER_DIR)s
@@ -236,7 +236,7 @@ if BUILD_INTERNAL_DIR:
   local_vars = {}
   try:
     execfile(os.path.join(
-        BUILD_INTERNAL_DIR, 'scripts', 'slave', 'bot_update_cfg.py'),
+        BUILD_INTERNAL_DIR, 'scripts', 'subordinate', 'bot_update_cfg.py'),
         local_vars)
   except Exception:
     # Same as if BUILD_INTERNAL_DIR didn't exist in the first place.
@@ -334,7 +334,7 @@ DISABLED_BUILDERS.update(internal_data.get('DISABLED_BUILDERS', {}))
 DISABLED_SLAVES = {}
 DISABLED_SLAVES.update(internal_data.get('DISABLED_SLAVES', {}))
 
-# These masters work only in Git, meaning for got_revision, always output
+# These mains work only in Git, meaning for got_revision, always output
 # a git hash rather than a SVN rev.
 GIT_MASTERS = [
     'client.v8',
@@ -526,32 +526,32 @@ def get_gclient_spec(solutions, target_os, target_os_only, git_cache_dir):
   }
 
 
-def check_enabled(master, builder, slave):
-  if master in ENABLED_MASTERS:
+def check_enabled(main, builder, subordinate):
+  if main in ENABLED_MASTERS:
     return True
-  builder_list = ENABLED_BUILDERS.get(master)
+  builder_list = ENABLED_BUILDERS.get(main)
   if builder_list and builder in builder_list:
     return True
-  slave_list = ENABLED_SLAVES.get(master)
-  if slave_list and slave in slave_list:
+  subordinate_list = ENABLED_SLAVES.get(main)
+  if subordinate_list and subordinate in subordinate_list:
     return True
   return False
 
 
-def check_disabled(master, builder, slave):
+def check_disabled(main, builder, subordinate):
   """Returns True if disabled, False if not disabled."""
-  builder_list = DISABLED_BUILDERS.get(master)
+  builder_list = DISABLED_BUILDERS.get(main)
   if builder_list and builder in builder_list:
     return True
-  slave_list = DISABLED_SLAVES.get(master)
-  if slave_list and slave in slave_list:
+  subordinate_list = DISABLED_SLAVES.get(main)
+  if subordinate_list and subordinate in subordinate_list:
     return True
   return False
 
 
-def check_valid_host(master, builder, slave):
-  return (check_enabled(master, builder, slave)
-          and not check_disabled(master, builder, slave))
+def check_valid_host(main, builder, subordinate):
+  return (check_enabled(main, builder, subordinate)
+          and not check_disabled(main, builder, subordinate))
 
 
 def maybe_ignore_revision(revision, buildspec):
@@ -795,7 +795,7 @@ def get_svn_rev(git_hash, dir_name):
 def get_git_hash(revision, branch, sln_dir):
   """We want to search for the SVN revision on the git-svn branch.
 
-  Note that git will search backwards from origin/master.
+  Note that git will search backwards from origin/main.
   """
   match = "^%s: [^ ]*@%s " % (GIT_SVN_ID_FOOTER_KEY, revision)
   ref = branch if branch.startswith('refs/') else 'origin/%s' % branch
@@ -908,7 +908,7 @@ def get_target_revision(folder_name, git_url, revisions):
 
 def force_revision(folder_name, revision):
   split_revision = revision.split(':', 1)
-  branch = 'master'
+  branch = 'main'
   if len(split_revision) == 2:
     # Support for "branch:revision" syntax.
     branch, revision = split_revision
@@ -1203,7 +1203,7 @@ def get_commit_position(git_path, revision='HEAD'):
 
   If the 'git-svn' URL maps to a known project, we will construct a commit
   position branch value by truncating the URL, mapping 'trunk' to
-  "refs/heads/master". Otherwise, we will return the generic branch, 'svn'.
+  "refs/heads/main". Otherwise, we will return the generic branch, 'svn'.
   """
   git_log = git('log', '--format=%B', '-n1', revision, cwd=git_path)
   footer_map = get_commit_message_footer_map(git_log)
@@ -1441,7 +1441,7 @@ def parse_args():
                    help='Gerrit repository to pull the ref from.')
   parse.add_option('--gerrit_ref', help='Gerrit ref to apply.')
   parse.add_option('--specs', help='Gcilent spec.')
-  parse.add_option('--master', help='Master name.')
+  parse.add_option('--main', help='Main name.')
   parse.add_option('-f', '--force', action='store_true',
                    help='Bypass check to see if we want to be run. '
                         'Should ONLY be used locally or by smart recipes.')
@@ -1460,7 +1460,7 @@ def parse_args():
                         'set to <branch>:<revision>.')
   parse.add_option('--output_manifest', action='store_true',
                    help=('Add manifest json to the json output.'))
-  parse.add_option('--slave_name', default=socket.getfqdn().split('.')[0],
+  parse.add_option('--subordinate_name', default=socket.getfqdn().split('.')[0],
                    help='Hostname of the current machine, '
                    'used for determining whether or not to activate.')
   parse.add_option('--builder_name', help='Name of the builder, '
@@ -1571,7 +1571,7 @@ def prepare(options, git_slns, active):
   return revisions, step_text
 
 
-def checkout(options, git_slns, specs, buildspec, master,
+def checkout(options, git_slns, specs, buildspec, main,
              svn_root, revisions, step_text):
   first_sln = git_slns[0]['name']
   dir_names = [sln.get('name') for sln in git_slns if 'name' in sln]
@@ -1633,8 +1633,8 @@ def checkout(options, git_slns, specs, buildspec, master,
       print '@@@STEP_TEXT@%s PATCH FAILED@@@' % step_text
     raise
 
-  # Revision is an svn revision, unless it's a git master.
-  use_svn_rev = master not in GIT_MASTERS
+  # Revision is an svn revision, unless it's a git main.
+  use_svn_rev = main not in GIT_MASTERS
 
   # Take care of got_revisions outputs.
   revision_mapping = dict(GOT_REVISION_MAPPINGS.get(svn_root, {}))
@@ -1673,7 +1673,7 @@ def checkout(options, git_slns, specs, buildspec, master,
     emit_properties(got_revisions)
 
 
-def print_help_text(force, output_json, active, master, builder, slave):
+def print_help_text(force, output_json, active, main, builder, subordinate):
   """Print helpful messages to tell devs whats going on."""
   if force and output_json:
     recipe_force = 'Forced on by recipes'
@@ -1685,9 +1685,9 @@ def print_help_text(force, output_json, active, master, builder, slave):
     recipe_force = 'N/A. Was not called by recipes'
 
   print BOT_UPDATE_MESSAGE % {
-    'master': master or 'Not specified',
+    'main': main or 'Not specified',
     'builder': builder or 'Not specified',
-    'slave': slave or 'Not specified',
+    'subordinate': subordinate or 'Not specified',
     'recipe': recipe_force,
     'CURRENT_DIR': CURRENT_DIR,
     'BUILDER_DIR': BUILDER_DIR,
@@ -1705,15 +1705,15 @@ def main():
   # Get inputs.
   options, _ = parse_args()
   builder = options.builder_name
-  slave = options.slave_name
-  master = options.master
+  subordinate = options.subordinate_name
+  main = options.main
 
   # Check if this script should activate or not.
-  active = check_valid_host(master, builder, slave) or options.force or False
+  active = check_valid_host(main, builder, subordinate) or options.force or False
 
   # Print a helpful message to tell developers whats going on with this step.
   print_help_text(
-      options.force, options.output_json, active, master, builder, slave)
+      options.force, options.output_json, active, main, builder, subordinate)
 
   # Parse, munipulate, and print the gclient solutions.
   specs = {}
@@ -1727,7 +1727,7 @@ def main():
   try:
     # Dun dun dun, the main part of bot_update.
     revisions, step_text = prepare(options, git_slns, active)
-    checkout(options, git_slns, specs, buildspec, master, svn_root, revisions,
+    checkout(options, git_slns, specs, buildspec, main, svn_root, revisions,
              step_text)
 
   except Inactive:

@@ -24,7 +24,7 @@ class JSONResultsGenerator(json_results_generator.JSONResultsGeneratorBase):
   the test results server.
   """
   def __init__(self, builder_name, build_name, build_number, tmp_folder,
-               test_results_map, test_results_server, test_type, master_name):
+               test_results_map, test_results_server, test_type, main_name):
     super(JSONResultsGenerator, self).__init__(
         builder_name=builder_name,
         build_name=build_name,
@@ -36,7 +36,7 @@ class JSONResultsGenerator(json_results_generator.JSONResultsGeneratorBase):
                           ('chrome', '.')),
         test_results_server=test_results_server,
         test_type=test_type,
-        master_name=master_name)
+        main_name=main_name)
 
   #override
   def _GetModifierChar(self, test_name):
@@ -86,7 +86,7 @@ class ResultsUploader(object):
   """Handles uploading buildbot tests results to the flakiness dashboard."""
   def __init__(self, tests_type):
     self._build_number = os.environ.get('BUILDBOT_BUILDNUMBER')
-    self._master_name = os.environ.get('BUILDBOT_MASTERNAME')
+    self._main_name = os.environ.get('BUILDBOT_MASTERNAME')
     self._builder_name = os.environ.get('BUILDBOT_BUILDERNAME')
     self._tests_type = tests_type
     self._build_name = None
@@ -100,11 +100,11 @@ class ResultsUploader(object):
       self._build_name = 'chromium-android'
       buildbot_branch = os.environ.get('BUILDBOT_BRANCH')
       if not buildbot_branch:
-        buildbot_branch = 'master'
+        buildbot_branch = 'main'
       else:
         # Ensure there's no leading "origin/"
         buildbot_branch = buildbot_branch[buildbot_branch.find('/') + 1:]
-      self._master_name = '%s-%s' % (self._build_name, buildbot_branch)
+      self._main_name = '%s-%s' % (self._build_name, buildbot_branch)
 
     self._test_results_map = {}
 
@@ -151,7 +151,7 @@ class ResultsUploader(object):
           test_results_map=self._test_results_map,
           test_results_server=test_results_server,
           test_type=self._tests_type,
-          master_name=self._master_name)
+          main_name=self._main_name)
 
       json_files = ["incremental_results.json", "times_ms.json"]
       results_generator.GenerateJSONOutput()

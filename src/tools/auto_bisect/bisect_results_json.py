@@ -80,9 +80,9 @@ def _GetViewVCLinkFromDepotAndHash(git_revision, depot):
 
 
 def _GetBuildBotLogUrl():
-  master_url = os.environ.get('BUILDBOT_BUILDBOTURL')
+  main_url = os.environ.get('BUILDBOT_BUILDBOTURL')
   builder_name = os.environ.get('BUILDBOT_BUILDERNAME')
   builder_number = os.environ.get('BUILDBOT_BUILDNUMBER')
-  if master_url and builder_name and builder_number:
-    return '%s%s/%s' % (master_url, builder_name, builder_number)
+  if main_url and builder_name and builder_number:
+    return '%s%s/%s' % (main_url, builder_name, builder_number)
   return ''

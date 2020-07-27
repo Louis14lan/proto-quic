@@ -163,7 +163,7 @@ def main():
     if not os.environ.get('CHROME_DEVEL_SANDBOX'):
       print 'SUID sandbox has not been setup.'\
             ' See https://chromium.googlesource.com/chromium/src/'\
-            '+/master/docs/linux_suid_sandbox_development.md.'
+            '+/main/docs/linux_suid_sandbox_development.md.'
       return 1
 
   return _RunBisectionScript(options)

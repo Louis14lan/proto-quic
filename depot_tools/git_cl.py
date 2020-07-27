@@ -66,8 +66,8 @@ DESCRIPTION_BACKUP_FILE = '~/.git_cl_description_backup'
 GIT_INSTRUCTIONS_URL = 'http://code.google.com/p/chromium/wiki/UsingGit'
 CHANGE_ID = 'Change-Id:'
 REFS_THAT_ALIAS_TO_OTHER_REFS = {
-    'refs/remotes/origin/lkgr': 'refs/remotes/origin/master',
-    'refs/remotes/origin/lkcr': 'refs/remotes/origin/master',
+    'refs/remotes/origin/lkgr': 'refs/remotes/origin/main',
+    'refs/remotes/origin/lkcr': 'refs/remotes/origin/main',
 }
 
 # Valid extensions for files we want to lint.
@@ -227,18 +227,18 @@ def _get_properties_from_options(options):
   return properties
 
 
-def _prefix_master(master):
-  """Convert user-specified master name to full master name.
+def _prefix_main(main):
+  """Convert user-specified main name to full main name.
 
-  Buildbucket uses full master name(master.tryserver.chromium.linux) as bucket
-  name, while the developers always use shortened master name
-  (tryserver.chromium.linux) by stripping off the prefix 'master.'. This
+  Buildbucket uses full main name(main.tryserver.chromium.linux) as bucket
+  name, while the developers always use shortened main name
+  (tryserver.chromium.linux) by stripping off the prefix 'main.'. This
   function does the conversion for buildbucket migration.
   """
-  prefix = 'master.'
-  if master.startswith(prefix):
-    return master
-  return '%s%s' % (prefix, master)
+  prefix = 'main.'
+  if main.startswith(prefix):
+    return main
+  return '%s%s' % (prefix, main)
 
 
 def _buildbucket_retry(operation_name, http, *args, **kwargs):
@@ -275,12 +275,12 @@ def _buildbucket_retry(operation_name, http, *args, **kwargs):
   assert False, 'unreachable'
 
 
-def trigger_luci_job(changelist, masters, options):
+def trigger_luci_job(changelist, mains, options):
   """Send a job to run on LUCI."""
   issue_props = changelist.GetIssueProperties()
   issue = changelist.GetIssue()
   patchset = changelist.GetMostRecentPatchset()
-  for builders_and_tests in sorted(masters.itervalues()):
+  for builders_and_tests in sorted(mains.itervalues()):
     # TODO(hinoka et al): add support for other properties.
     # Currently, this completely ignores testfilter and other properties.
     for builder in sorted(builders_and_tests):
@@ -288,7 +288,7 @@ def trigger_luci_job(changelist, masters, options):
           builder, 'HEAD', issue, patchset, issue_props['project'])
 
 
-def trigger_try_jobs(auth_config, changelist, options, masters, category):
+def trigger_try_jobs(auth_config, changelist, options, mains, category):
   rietveld_url = settings.GetDefaultServerUrl()
   rietveld_host = urlparse.urlparse(rietveld_url).hostname
   authenticator = auth.get_authenticator_for_host(rietveld_host, auth_config)
@@ -310,9 +310,9 @@ def trigger_try_jobs(auth_config, changelist, options, masters, category):
   batch_req_body = {'builds': []}
   print_text = []
   print_text.append('Tried jobs on:')
-  for master, builders_and_tests in sorted(masters.iteritems()):
-    print_text.append('Master: %s' % master)
-    bucket = _prefix_master(master)
+  for main, builders_and_tests in sorted(mains.iteritems()):
+    print_text.append('Main: %s' % main)
+    bucket = _prefix_main(main)
     for builder, tests in sorted(builders_and_tests.iteritems()):
       print_text.append('  %s: %s' % (builder, tests))
       parameters = {
@@ -324,7 +324,7 @@ def trigger_try_jobs(auth_config, changelist, options, masters, category):
           'properties': {
               'category': category,
               'issue': issue,
-              'master': master,
+              'main': main,
               'patch_project': issue_props['project'],
               'patch_storage': 'rietveld',
               'patchset': patchset,
@@ -345,7 +345,7 @@ def trigger_try_jobs(auth_config, changelist, options, masters, category):
               'client_operation_id': str(uuid.uuid4()),
               'tags': ['builder:%s' % builder,
                        'buildset:%s' % buildset,
-                       'master:%s' % master,
+                       'main:%s' % main,
                        'user_agent:git_cl_try']
           }
       )
@@ -428,11 +428,11 @@ def print_tryjobs(options, builds):
 
   def get_bucket(b):
     bucket = b['bucket']
-    if bucket.startswith('master.'):
-      return bucket[len('master.'):]
+    if bucket.startswith('main.'):
+      return bucket[len('main.'):]
     return bucket
 
-  if options.print_master:
+  if options.print_main:
     name_fmt = '%%-%ds %%-%ds' % (
         max(len(str(get_bucket(b))) for b in builds.itervalues()),
         max(len(str(get_builder(b))) for b in builds.itervalues()))
@@ -480,7 +480,7 @@ def print_tryjobs(options, builds):
       f=lambda b: (get_name(b),))
   pop(status='COMPLETED', result='FAILURE',
       failure_reason='INVALID_BUILD_DEFINITION',
-      title='Wrong master/builder name:', color=Fore.MAGENTA,
+      title='Wrong main/builder name:', color=Fore.MAGENTA,
       f=lambda b: (get_name(b),))
   pop(status='COMPLETED', result='FAILURE',
       title='Other failures:',
@@ -860,7 +860,7 @@ class Changelist(object):
     self.watchers = watchers
 
   def GetBranch(self):
-    """Returns the short branch name, e.g. 'master'."""
+    """Returns the short branch name, e.g. 'main'."""
     if not self.branch:
       branchref = RunGit(['symbolic-ref', 'HEAD'],
                          stderr=subprocess2.VOID, error_ok=True).strip()
@@ -871,14 +871,14 @@ class Changelist(object):
     return self.branch
 
   def GetBranchRef(self):
-    """Returns the full branch name, e.g. 'refs/heads/master'."""
+    """Returns the full branch name, e.g. 'refs/heads/main'."""
     self.GetBranch()  # Poke the lazy loader.
     return self.branchref
 
   @staticmethod
   def FetchUpstreamTuple(branch):
     """Returns a tuple containing remote and remote ref,
-       e.g. 'origin', 'refs/heads/master'
+       e.g. 'origin', 'refs/heads/main'
     """
     remote = '.'
     upstream_branch = RunGit(['config', 'branch.%s.merge' % branch],
@@ -897,10 +897,10 @@ class Changelist(object):
         else:
           # Else, try to guess the origin remote.
           remote_branches = RunGit(['branch', '-r']).split()
-          if 'origin/master' in remote_branches:
-            # Fall back on origin/master if it exits.
+          if 'origin/main' in remote_branches:
+            # Fall back on origin/main if it exits.
             remote = 'origin'
-            upstream_branch = 'refs/heads/master'
+            upstream_branch = 'refs/heads/main'
           elif 'origin/trunk' in remote_branches:
             # Fall back on origin/trunk if it exists. Generally a shared
             # git-svn clone
@@ -909,7 +909,7 @@ class Changelist(object):
           else:
             DieWithError("""Unable to determine default branch to diff against.
 Either pass complete "git diff"-style arguments, like
-  git cl upload origin/master
+  git cl upload origin/main
 or verify this branch is set up to track another (via the --track argument to
 "git checkout -b ...").""")
 
@@ -1185,7 +1185,7 @@ or verify this branch is set up to track another (via the --track argument to
            'This branch probably doesn\'t exist anymore. To reset the\n'
            'tracking branch, please run\n'
            '    git branch --set-upstream %s trunk\n'
-           'replacing trunk with origin/master or the relevant branch') %
+           'replacing trunk with origin/main or the relevant branch') %
           (upstream_branch, self.GetBranch()))
 
     issue = self.GetIssue()
@@ -2314,7 +2314,7 @@ def GetTargetRef(remote, remote_branch, target_branch, pending_prefix):
   # Create the true path to the remote branch.
   # Does the following translation:
   # * refs/remotes/origin/refs/diff/test -> refs/diff/test
-  # * refs/remotes/origin/master -> refs/heads/master
+  # * refs/remotes/origin/main -> refs/heads/main
   # * refs/remotes/branch-heads/test -> refs/branch-heads/test
   if remote_branch.startswith('refs/remotes/%s/refs/' % remote):
     remote_branch = remote_branch.replace('refs/remotes/%s/' % remote, '')
@@ -2529,7 +2529,7 @@ def CMDupload(parser, args):
                     '--target-branch',
                     metavar='TARGET',
                     help='Apply CL to remote ref TARGET.  ' +
-                         'Default: remote branch head, or master')
+                         'Default: remote branch head, or main')
   parser.add_option('--squash', action='store_true',
                     help='Squash multiple commits into one (Gerrit only)')
   parser.add_option('--no-squash', action='store_true',
@@ -2691,7 +2691,7 @@ def SendUpstream(parser, args, cmd):
     print
     print 'Attempting to push branch %r into another local branch!' % current
     print
-    print 'Either reparent this branch on top of origin/master:'
+    print 'Either reparent this branch on top of origin/main:'
     print '  git reparent-branch --root'
     print
     print 'OR run `git rebase-update` if you think the parent branch is already'
@@ -2808,7 +2808,7 @@ def SendUpstream(parser, args, cmd):
 
   # We want to squash all this branch's commits into one commit with the proper
   # description. We do this by doing a "reset --soft" to the base branch (which
-  # keeps the working copy the same), then dcommitting that.  If origin/master
+  # keeps the working copy the same), then dcommitting that.  If origin/main
   # has a submodule merge commit, we'll also need to cherry-pick the squashed
   # commit onto a branch based on the git-svn head.
   MERGE_BRANCH = 'git-cl-commit'
@@ -3045,12 +3045,12 @@ def CMDdcommit(parser, args):
     if get_footer_svn_id():
       # If it looks like previous commits were mirrored with git-svn.
       message = """This repository appears to be a git-svn mirror, but no
-upstream SVN master is set. You probably need to run 'git auto-svn' once."""
+upstream SVN main is set. You probably need to run 'git auto-svn' once."""
     else:
       message = """This doesn't appear to be an SVN repository.
 If your project has a true, writeable git repository, you probably want to run
 'git cl land' instead.
-If your project has a git mirror of an upstream SVN master, you probably need
+If your project has a git mirror of an upstream SVN main, you probably need
 to run 'git svn init'.
 
 Using the wrong command might cause your commit to appear to succeed, and the
@@ -3270,35 +3270,35 @@ def GetTreeStatusReason():
   return status['message']
 
 
-def GetBuilderMaster(bot_list):
-  """For a given builder, fetch the master from AE if available."""
+def GetBuilderMain(bot_list):
+  """For a given builder, fetch the main from AE if available."""
   map_url = 'https://builders-map.appspot.com/'
   try:
-    master_map = json.load(urllib2.urlopen(map_url))
+    main_map = json.load(urllib2.urlopen(map_url))
   except urllib2.URLError as e:
-    return None, ('Failed to fetch builder-to-master map from %s. Error: %s.' %
+    return None, ('Failed to fetch builder-to-main map from %s. Error: %s.' %
                   (map_url, e))
   except ValueError as e:
     return None, ('Invalid json string from %s. Error: %s.' % (map_url, e))
-  if not master_map:
-    return None, 'Failed to build master map.'
+  if not main_map:
+    return None, 'Failed to build main map.'
 
-  result_master = ''
+  result_main = ''
   for bot in bot_list:
     builder = bot.split(':', 1)[0]
-    master_list = master_map.get(builder, [])
-    if not master_list:
-      return None, ('No matching master for builder %s.' % builder)
-    elif len(master_list) > 1:
-      return None, ('The builder name %s exists in multiple masters %s.' %
-                    (builder, master_list))
+    main_list = main_map.get(builder, [])
+    if not main_list:
+      return None, ('No matching main for builder %s.' % builder)
+    elif len(main_list) > 1:
+      return None, ('The builder name %s exists in multiple mains %s.' %
+                    (builder, main_list))
     else:
-      cur_master = master_list[0]
-      if not result_master:
-        result_master = cur_master
-      elif result_master != cur_master:
-        return None, 'The builders do not belong to the same master.'
-  return result_master, None
+      cur_main = main_list[0]
+      if not result_main:
+        result_main = cur_main
+      elif result_main != cur_main:
+        return None, 'The builders do not belong to the same main.'
+  return result_main, None
 
 
 def CMDtree(parser, args):
@@ -3328,8 +3328,8 @@ def CMDtry(parser, args):
             "the try server waterfall for the builders name and the tests "
             "available."))
   group.add_option(
-      "-m", "--master", default='',
-      help=("Specify a try master where to run the tries."))
+      "-m", "--main", default='',
+      help=("Specify a try main where to run the tries."))
   group.add_option( "--luci", action='store_true')
   group.add_option(
       "-r", "--revision",
@@ -3387,20 +3387,20 @@ def CMDtry(parser, args):
   if not options.name:
     options.name = cl.GetBranch()
 
-  if options.bot and not options.master:
-    options.master, err_msg = GetBuilderMaster(options.bot)
+  if options.bot and not options.main:
+    options.main, err_msg = GetBuilderMain(options.bot)
     if err_msg:
-      parser.error('Tryserver master cannot be found because: %s\n'
-                   'Please manually specify the tryserver master'
+      parser.error('Tryserver main cannot be found because: %s\n'
+                   'Please manually specify the tryserver main'
                    ', e.g. "-m tryserver.chromium.linux".' % err_msg)
 
-  def GetMasterMap():
+  def GetMainMap():
     # Process --bot.
     if not options.bot:
       change = cl.GetChange(cl.GetCommonAncestorWithUpstream(), None)
 
-      # Get try masters from PRESUBMIT.py files.
-      masters = presubmit_support.DoGetTryMasters(
+      # Get try mains from PRESUBMIT.py files.
+      mains = presubmit_support.DoGetTryMains(
           change,
           change.LocalPaths(),
           settings.GetRoot(),
@@ -3408,11 +3408,11 @@ def CMDtry(parser, args):
           None,
           options.verbose,
           sys.stdout)
-      if masters:
-        return masters
+      if mains:
+        return mains
 
-      # Fall back to deprecated method: get try slaves from PRESUBMIT.py files.
-      options.bot = presubmit_support.DoGetTrySlaves(
+      # Fall back to deprecated method: get try subordinates from PRESUBMIT.py files.
+      options.bot = presubmit_support.DoGetTrySubordinates(
           change,
           change.LocalPaths(),
           settings.GetRoot(),
@@ -3422,29 +3422,29 @@ def CMDtry(parser, args):
           sys.stdout)
 
       if not options.bot:
-        # Get try masters from cq.cfg if any.
+        # Get try mains from cq.cfg if any.
         # TODO(tandrii): some (but very few) projects store cq.cfg in different
         # location.
         cq_cfg = os.path.join(change.RepositoryRoot(),
                               'infra', 'config', 'cq.cfg')
         if os.path.exists(cq_cfg):
-          masters = {}
-          cq_masters = commit_queue.get_master_builder_map(
+          mains = {}
+          cq_mains = commit_queue.get_main_builder_map(
               cq_cfg, include_experimental=False, include_triggered=False)
-          for master, builders in cq_masters.iteritems():
+          for main, builders in cq_mains.iteritems():
             for builder in builders:
               # Skip presubmit builders, because these will fail without LGTM.
               if 'presubmit' not in builder.lower():
-                masters.setdefault(master, {})[builder] = ['defaulttests']
-          if masters:
-            return masters
+                mains.setdefault(main, {})[builder] = ['defaulttests']
+          if mains:
+            return mains
 
     if not options.bot:
       parser.error('No default try builder to try, use --bot')
 
     builders_and_tests = {}
     # TODO(machenbach): The old style command-line options don't support
-    # multiple try masters yet.
+    # multiple try mains yet.
     old_style = filter(lambda x: isinstance(x, basestring), options.bot)
     new_style = filter(lambda x: isinstance(x, tuple), options.bot)
 
@@ -3459,14 +3459,14 @@ def CMDtry(parser, args):
     for bot, tests in new_style:
       builders_and_tests.setdefault(bot, []).extend(tests)
 
-    # Return a master map with one master to be backwards compatible. The
-    # master name defaults to an empty string, which will cause the master
+    # Return a main map with one main to be backwards compatible. The
+    # main name defaults to an empty string, which will cause the main
     # not to be set on rietveld (deprecated).
-    return {options.master: builders_and_tests}
+    return {options.main: builders_and_tests}
 
-  masters = GetMasterMap()
+  mains = GetMainMap()
 
-  for builders in masters.itervalues():
+  for builders in mains.itervalues():
     if any('triggered' in b for b in builders):
       print >> sys.stderr, (
           'ERROR You are trying to send a job to a triggered bot. This type of'
@@ -3482,10 +3482,10 @@ def CMDtry(parser, args):
         'upload fail?\ngit-cl try always uses latest patchset from rietveld. '
         'Continuing using\npatchset %s.\n' % patchset)
   if options.luci:
-    trigger_luci_job(cl, masters, options)
+    trigger_luci_job(cl, mains, options)
   elif not options.use_rietveld:
     try:
-      trigger_try_jobs(auth_config, cl, options, masters, 'git_cl_try')
+      trigger_try_jobs(auth_config, cl, options, mains, 'git_cl_try')
     except BuildbucketResponseException as ex:
       print 'ERROR: %s' % ex
       return 1
@@ -3498,7 +3498,7 @@ def CMDtry(parser, args):
     try:
       cl.RpcServer().trigger_distributed_try_jobs(
           cl.GetIssue(), patchset, options.name, options.clobber,
-          options.revision, masters)
+          options.revision, mains)
     except urllib2.HTTPError as e:
       if e.code == 404:
         print('404 from rietveld; '
@@ -3506,9 +3506,9 @@ def CMDtry(parser, args):
         return 1
     print('Tried jobs on:')
 
-    for (master, builders) in sorted(masters.iteritems()):
-      if master:
-        print 'Master: %s' % master
+    for (main, builders) in sorted(mains.iteritems()):
+      if main:
+        print 'Main: %s' % main
       length = max(len(builder) for builder in builders)
       for builder in sorted(builders):
         print '  %*s: %s' % (length, builder, ','.join(builders[builder]))
@@ -3520,7 +3520,7 @@ def CMDtry_results(parser, args):
   group.add_option(
       "-p", "--patchset", type=int, help="patchset number if not current.")
   group.add_option(
-      "--print-master", action='store_true', help="print master name as well")
+      "--print-main", action='store_true', help="print main name as well")
   group.add_option(
       "--buildbucket-host", default='cr-buildbucket.appspot.com',
       help="Host of buildbucket. The default host is %default.")

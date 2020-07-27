@@ -32,7 +32,7 @@ type serverHandshakeState struct {
 	ecdsaOk         bool
 	sessionState    *sessionState
 	finishedHash    finishedHash
-	masterSecret    []byte
+	mainSecret    []byte
 	certsFromClient [][]byte
 	cert            *Certificate
 	finishedBytes   []byte
@@ -125,7 +125,7 @@ func (c *Conn) serverHandshake() error {
 			}
 		}
 
-		c.exporterSecret = hs.masterSecret
+		c.exporterSecret = hs.mainSecret
 	}
 	c.handshakeComplete = true
 	copy(c.clientRandom[:], hs.clientHello.random)
@@ -508,7 +508,7 @@ Curves:
 
 	// Resolve PSK and compute the early secret.
 	if hs.sessionState != nil {
-		hs.finishedHash.addEntropy(hs.sessionState.masterSecret)
+		hs.finishedHash.addEntropy(hs.sessionState.mainSecret)
 	} else {
 		hs.finishedHash.addEntropy(hs.finishedHash.zeroSecret())
 	}
@@ -1223,11 +1223,11 @@ func (hs *serverHandshakeState) processClientExtensions(serverExtensions *server
 	}
 
 	if c.vers < VersionTLS13 || config.Bugs.NegotiateEMSAtAllVersions {
-		disableEMS := config.Bugs.NoExtendedMasterSecret
+		disableEMS := config.Bugs.NoExtendedMainSecret
 		if c.cipherSuite != nil {
-			disableEMS = config.Bugs.NoExtendedMasterSecretOnRenegotiation
+			disableEMS = config.Bugs.NoExtendedMainSecretOnRenegotiation
 		}
-		serverExtensions.extendedMasterSecret = c.vers >= VersionTLS10 && hs.clientHello.extendedMasterSecret && !disableEMS
+		serverExtensions.extendedMainSecret = c.vers >= VersionTLS10 && hs.clientHello.extendedMainSecret && !disableEMS
 	}
 
 	if hs.clientHello.channelIDSupported && config.RequestChannelID {
@@ -1381,8 +1381,8 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
 		}
 	}
 
-	hs.masterSecret = hs.sessionState.masterSecret
-	c.extendedMasterSecret = hs.sessionState.extendedMasterSecret
+	hs.mainSecret = hs.sessionState.mainSecret
+	c.extendedMainSecret = hs.sessionState.extendedMainSecret
 
 	return nil
 }
@@ -1405,7 +1405,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 	if config.Bugs.SendCipherSuite != 0 {
 		hs.hello.cipherSuite = config.Bugs.SendCipherSuite
 	}
-	c.extendedMasterSecret = hs.hello.extensions.extendedMasterSecret
+	c.extendedMainSecret = hs.hello.extensions.extendedMainSecret
 
 	// Generate a session ID if we're to save the session.
 	if !hs.hello.extensions.ticketSupported && config.ServerSessionCache != nil {
@@ -1565,18 +1565,18 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 	}
 	hs.writeClientHash(ckx.marshal())
 
-	preMasterSecret, err := keyAgreement.processClientKeyExchange(config, hs.cert, ckx, c.vers)
+	preMainSecret, err := keyAgreement.processClientKeyExchange(config, hs.cert, ckx, c.vers)
 	if err != nil {
 		c.sendAlert(alertHandshakeFailure)
 		return err
 	}
-	if c.extendedMasterSecret {
-		hs.masterSecret = extendedMasterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret, hs.finishedHash)
+	if c.extendedMainSecret {
+		hs.mainSecret = extendedMainFromPreMainSecret(c.vers, hs.suite, preMainSecret, hs.finishedHash)
 	} else {
-		if c.config.Bugs.RequireExtendedMasterSecret {
-			return errors.New("tls: extended master secret required but not supported by peer")
+		if c.config.Bugs.RequireExtendedMainSecret {
+			return errors.New("tls: extended main secret required but not supported by peer")
 		}
-		hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret, hs.clientHello.random, hs.hello.random)
+		hs.mainSecret = mainFromPreMainSecret(c.vers, hs.suite, preMainSecret, hs.clientHello.random, hs.hello.random)
 	}
 
 	// If we received a client cert in response to our certificate request message,
@@ -1612,7 +1612,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 			if !ok {
 				err = errors.New("unsupported key type for client certificate")
 			} else {
-				digest := hs.finishedHash.hashForClientCertificateSSL3(hs.masterSecret)
+				digest := hs.finishedHash.hashForClientCertificateSSL3(hs.mainSecret)
 				err = rsa.VerifyPKCS1v15(rsaPub, crypto.MD5SHA1, digest, certVerify.signature)
 			}
 		}
@@ -1633,7 +1633,7 @@ func (hs *serverHandshakeState) establishKeys() error {
 	c := hs.c
 
 	clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
-		keysFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.clientHello.random, hs.hello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen(c.vers))
+		keysFromMainSecret(c.vers, hs.suite, hs.mainSecret, hs.clientHello.random, hs.hello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen(c.vers))
 
 	var clientCipher, serverCipher interface{}
 	var clientHash, serverHash macFunction
@@ -1709,7 +1709,7 @@ func (hs *serverHandshakeState) readFinished(out []byte, isResume bool) error {
 		return unexpectedMessageError(clientFinished, msg)
 	}
 
-	verify := hs.finishedHash.clientSum(hs.masterSecret)
+	verify := hs.finishedHash.clientSum(hs.mainSecret)
 	if len(verify) != len(clientFinished.verifyData) ||
 		subtle.ConstantTimeCompare(verify, clientFinished.verifyData) != 1 {
 		c.sendAlert(alertHandshakeFailure)
@@ -1727,7 +1727,7 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
 	state := sessionState{
 		vers:          c.vers,
 		cipherSuite:   hs.suite.id,
-		masterSecret:  hs.masterSecret,
+		mainSecret:  hs.mainSecret,
 		certificates:  hs.certsFromClient,
 		handshakeHash: hs.finishedHash.Sum(),
 	}
@@ -1762,7 +1762,7 @@ func (hs *serverHandshakeState) sendFinished(out []byte) error {
 	c := hs.c
 
 	finished := new(finishedMsg)
-	finished.verifyData = hs.finishedHash.serverSum(hs.masterSecret)
+	finished.verifyData = hs.finishedHash.serverSum(hs.mainSecret)
 	copy(out, finished.verifyData)
 	if c.config.Bugs.BadFinished {
 		finished.verifyData[0]++
@@ -1992,7 +1992,7 @@ func verifyPSKBinder(clientHello *clientHelloMsg, sessionState *sessionState, bi
 		return errors.New("tls: Unknown cipher suite for PSK in session")
 	}
 
-	binder := computePSKBinder(sessionState.masterSecret, resumptionPSKBinderLabel, pskCipherSuite, transcript, truncatedHello)
+	binder := computePSKBinder(sessionState.mainSecret, resumptionPSKBinderLabel, pskCipherSuite, transcript, truncatedHello)
 	if !bytes.Equal(binder, binderToVerify) {
 		return errors.New("tls: PSK binder does not verify")
 	}

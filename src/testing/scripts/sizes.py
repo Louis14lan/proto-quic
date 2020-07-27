@@ -17,7 +17,7 @@ def main_run(args):
         '--test-type', 'sizes',
         '--run-python-script',
         os.path.join(
-            common.SRC_DIR, 'infra', 'scripts', 'legacy', 'scripts', 'slave',
+            common.SRC_DIR, 'infra', 'scripts', 'legacy', 'scripts', 'subordinate',
             'chromium', 'sizes.py'),
         '--json', tempfile_path])
     with open(tempfile_path) as f:

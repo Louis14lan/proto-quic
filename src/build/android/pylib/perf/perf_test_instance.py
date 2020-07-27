@@ -16,7 +16,7 @@ from pylib.base import test_instance
 from pylib.constants import host_paths
 
 
-_GIT_CR_POS_RE = re.compile(r'^Cr-Commit-Position: refs/heads/master@{#(\d+)}$')
+_GIT_CR_POS_RE = re.compile(r'^Cr-Commit-Position: refs/heads/main@{#(\d+)}$')
 
 
 def _GetPersistedResult(test_name):
@@ -31,7 +31,7 @@ def _GetPersistedResult(test_name):
 
 def _GetChromiumRevision():
   # pylint: disable=line-too-long
-  """Get the git hash and commit position of the chromium master branch.
+  """Get the git hash and commit position of the chromium main branch.
 
   See:
   https://chromium.googlesource.com/chromium/tools/build/+/387e3cf3/scripts/slave/runtest.py#211

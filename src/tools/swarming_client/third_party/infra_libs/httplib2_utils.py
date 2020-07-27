@@ -151,7 +151,7 @@ def get_authenticated_http(credentials_filename,
     timeout (int): timeout passed to httplib2.Http, in seconds.
 
   Returns:
-    httplib2.Http authenticated with master's service account.
+    httplib2.Http authenticated with main's service account.
   """
   creds = get_signed_jwt_assertion_credentials(
     credentials_filename,

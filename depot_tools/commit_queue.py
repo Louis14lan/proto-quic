@@ -102,18 +102,18 @@ def set_commit(obj, issue, flag):
   _apply_on_issue(_set_commit, obj, issue)
 
 
-def get_master_builder_map(
+def get_main_builder_map(
       config_path, include_experimental=True, include_triggered=True):
-  """Returns a map of master -> [builders] from cq config."""
+  """Returns a map of main -> [builders] from cq config."""
   with open(config_path) as config_file:
     cq_config = config_file.read()
 
   config = cq_pb2.Config()
   text_format.Merge(cq_config, config)
-  masters = {}
+  mains = {}
   if config.HasField('verifiers') and config.verifiers.HasField('try_job'):
     for bucket in config.verifiers.try_job.buckets:
-      masters.setdefault(bucket.name, [])
+      mains.setdefault(bucket.name, [])
       for builder in bucket.builders:
         if (not include_experimental and
             builder.HasField('experiment_percentage')):
@@ -121,8 +121,8 @@ def get_master_builder_map(
         if (not include_triggered and
             builder.HasField('triggered_by')):
           continue
-        masters[bucket.name].append(builder.name)
-  return masters
+        mains[bucket.name].append(builder.name)
+  return mains
 
 
 @need_issue
@@ -155,11 +155,11 @@ def CMDbuilders(parser, args):
 
   The output is a dictionary in the following format:
     {
-      'master_name': [
+      'main_name': [
         'builder_name',
         'another_builder'
       ],
-      'another_master': [
+      'another_main': [
         'third_builder'
       ]
     }
@@ -176,7 +176,7 @@ def CMDbuilders(parser, args):
   if len(args) != 1:
     parser.error('Expected a single path to CQ config. Got: %s' %
                  ' '.join(args))
-  print json.dumps(get_master_builder_map(
+  print json.dumps(get_main_builder_map(
       args[0],
       include_experimental=options.include_experimental,
       include_triggered=options.include_triggered))

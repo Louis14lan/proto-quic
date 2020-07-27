@@ -16,7 +16,7 @@ TEST_CONFIGS = [
   'blink_or_chromium',
   'boringssl',
   'build_internal',
-  'build_internal_scripts_slave',
+  'build_internal_scripts_subordinate',
   'catapult',
   'chrome_internal',
   'chromium',
@@ -31,20 +31,20 @@ TEST_CONFIGS = [
   'gerrit_test_cq_normal',
   'gyp',
   'infra',
-  'infradata_master_manager',
+  'infradata_main_manager',
   'internal_deps',
   'ios',
   'luci_gae',
   'luci_go',
   'luci_py',
-  'master_deps',
+  'main_deps',
   'mojo',
   'nacl',
   'pdfium',
   'perf',
   'recipes_py',
   'show_v8_revision',
-  'slave_deps',
+  'subordinate_deps',
   'v8_bleeding_edge_git',
   'v8_canary',
   'wasm_llvm',
@@ -81,7 +81,7 @@ def RunSteps(api):
   api.gclient.checkout(
       gclient_config=bl_cfg,
       with_branch_heads=True,
-      cwd=api.path['slave_build'].join('src', 'third_party'))
+      cwd=api.path['subordinate_build'].join('src', 'third_party'))
 
   api.gclient.break_locks()
 

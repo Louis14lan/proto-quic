@@ -186,7 +186,7 @@ def get_waterfall_config():
       ])
 
   # These configurations are taken from chromium_perf.py in
-  # build/scripts/slave/recipe_modules/chromium_tests and must be kept in sync
+  # build/scripts/subordinate/recipe_modules/chromium_tests and must be kept in sync
   # to generate the correct json for each tester
   waterfall = add_tester(
     waterfall, 'Android One Perf', 'android-one',
@@ -634,18 +634,18 @@ def generate_telemetry_test(swarming_dimensions, benchmark_name, browser):
       swarming_timeout=BENCHMARK_SWARMING_TIMEOUTS.get(benchmark_name))
 
 
-def script_test_enabled_on_tester(master, test, tester_name, shard):
-  for enabled_tester in test['testers'].get(master, []):
+def script_test_enabled_on_tester(main, test, tester_name, shard):
+  for enabled_tester in test['testers'].get(main, []):
     if enabled_tester['name'] == tester_name:
       if shard in enabled_tester['shards']:
         return True
   return False
 
 
-def generate_script_tests(master, tester_name, shard):
+def generate_script_tests(main, tester_name, shard):
   script_tests = []
   for test in SCRIPT_TESTS:
-    if script_test_enabled_on_tester(master, test, tester_name, shard):
+    if script_test_enabled_on_tester(main, test, tester_name, shard):
       script = {
         'args': test['args'],
         'name': test['name'],

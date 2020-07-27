@@ -50,7 +50,7 @@ def parse_args(use_isolate_server, use_swarming):
         help='Swarming server to use (default: SWARMING_SERVER env var)')
     parser.add_option(
         '-o', '--os', default=sys.platform,
-        help='Swarming slave OS to request. Should be one of the valid '
+        help='Swarming subordinate OS to request. Should be one of the valid '
              'sys.platform values like darwin, linux2 or win32 default: '
              '%default.')
     parser.add_option(

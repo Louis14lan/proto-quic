@@ -19,7 +19,7 @@ def RunSteps(api):
   # useful for debugging git access issues that are reproducible only on bots.
   curl_trace_file = None
   if api.properties.get('use_curl_trace'):
-    curl_trace_file = api.path['slave_build'].join('curl_trace.log')
+    curl_trace_file = api.path['subordinate_build'].join('curl_trace.log')
 
   submodule_update_force = api.properties.get('submodule_update_force', False)
   submodule_update_recursive = api.properties.get('submodule_update_recursive',
@@ -67,7 +67,7 @@ def RunSteps(api):
           can_fail_build=False)
 
   # You can use api.git.rebase to rebase the current branch onto another one
-  api.git.rebase(name_prefix='my repo', branch='origin/master',
+  api.git.rebase(name_prefix='my repo', branch='origin/main',
                  dir_path=api.path['checkout'],
                  remote_name=api.properties.get('remote_name'))
 
@@ -80,7 +80,7 @@ def RunSteps(api):
 
   # Bundle the repository.
   api.git.bundle_create(
-        api.path['slave_build'].join('all.bundle'))
+        api.path['subordinate_build'].join('all.bundle'))
 
 
 def GenTests(api):

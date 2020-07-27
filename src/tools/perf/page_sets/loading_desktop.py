@@ -96,7 +96,7 @@ class LoadingDesktopStorySet(story.StorySet):
          ('http://premierleague.com', 'PremierLeague'),
          ('http://walgreens.com', 'Walgreens'),
          ('http://colorado.edu', 'Colorado.edu'),
-         ('http://www.ticketmaster.com/', 'TicketMaster'),
+         ('http://www.ticketmain.com/', 'TicketMain'),
          ('http://www.theverge.com/', 'TheVerge'),
          ('http://www.airbnb.com/', 'AirBnB'),
          ('http://www.ign.com/', 'IGN'),

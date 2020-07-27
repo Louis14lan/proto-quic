@@ -10,7 +10,7 @@ DEPS = [
 ]
 
 def RunSteps(api):
-  api.path['checkout'] = api.path['slave_build']
+  api.path['checkout'] = api.path['subordinate_build']
   api.rietveld.apply_issue('foo', 'bar', authentication='oauth2')
   api.rietveld.calculate_issue_root({'project': ['']})
 

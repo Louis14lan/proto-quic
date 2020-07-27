@@ -145,8 +145,8 @@ def _get_branch_info():
     pass
   if not tracking_branch:
     print 'ERROR: no tracking branch found. Bailing out...'
-    print '       If you want to track origin/master, then run:'
-    print '           git branch --set-upstream-to origin/master'
+    print '       If you want to track origin/main, then run:'
+    print '           git branch --set-upstream-to origin/main'
     sys.exit(1)
 
   print 'INFO: tracking branch: %s' % tracking_branch
@@ -160,7 +160,7 @@ def _commit_is_ancestor_of(ancestor, commit):
 
 
 def _ensure_origin_contains_commit():
-  if not _commit_is_ancestor_of(_RENAME_COMMIT, 'refs/remotes/origin/master'):
+  if not _commit_is_ancestor_of(_RENAME_COMMIT, 'refs/remotes/origin/main'):
     _check_call_git(['fetch', 'origin'])
 
 
@@ -224,7 +224,7 @@ def _prepare_branch(current_branch,
     print 'ERROR: tracking branch not prepared yet; run --prepare on tracking '
     print '       branch first.'
     sys.exit(1)
-  if (tracking_branch != 'refs/remotes/origin/master' and
+  if (tracking_branch != 'refs/remotes/origin/main' and
       _commit_is_ancestor_of(_RENAME_COMMIT, tracking_branch)):
     print 'ERROR: tracking branch already contains rename commit; bailing out '
     print '       since the tool cannot handle this automatically.'
@@ -246,7 +246,7 @@ def _prepare_branch(current_branch,
     update_args.append('rebase')
   else:
     update_args.append('merge')
-  if tracking_branch == 'refs/remotes/origin/master':
+  if tracking_branch == 'refs/remotes/origin/main':
     update_args.append(_BEFORE_RENAME_COMMIT)
   if _call_git(update_args) != 0:
     print 'ERROR: failed to update branch to the commit before the rename.'
@@ -396,7 +396,7 @@ def _update_branch(current_branch, tracking_branch, rebase=True):
     print 'ERROR: tracking branch not updated yet; run --update on tracking '
     print '       branch first.'
     sys.exit(1)
-  if tracking_branch != 'refs/remotes/origin/master' and _commit_is_ancestor_of(
+  if tracking_branch != 'refs/remotes/origin/main' and _commit_is_ancestor_of(
       _AFTER_RENAME_COMMIT, tracking_branch):
     print 'WARNING: tracking branch is already ahead of the rename commit.'
     print '         The reliability of the tool will be much lower.'
@@ -431,7 +431,7 @@ def _update_branch(current_branch, tracking_branch, rebase=True):
     args.append('rebase')
   else:
     args.append('merge')
-  if tracking_branch == 'refs/remotes/origin/master':
+  if tracking_branch == 'refs/remotes/origin/main':
     args.append(_RENAME_COMMIT)
   with _MergeTool():
     if _call_git(
@@ -473,9 +473,9 @@ def run():
 
   current_branch, tracking_branch = _get_branch_info()
 
-  if tracking_branch != 'refs/remotes/origin/master':
+  if tracking_branch != 'refs/remotes/origin/main':
     print 'WARNING: The script is more fragile when the tracking branch '
-    print '         is not refs/remotes/origin/master.'
+    print '         is not refs/remotes/origin/main.'
     # Default to danger mode.
     if not _prompt_yes_or_no('Continue', default='yes'):
       sys.exit(1)

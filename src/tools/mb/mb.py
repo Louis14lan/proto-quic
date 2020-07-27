@@ -52,7 +52,7 @@ class MetaBuildWrapper(object):
     self.sep = os.sep
     self.args = argparse.Namespace()
     self.configs = {}
-    self.masters = {}
+    self.mains = {}
     self.mixins = {}
 
   def Main(self, args):
@@ -76,8 +76,8 @@ class MetaBuildWrapper(object):
     def AddCommonOptions(subp):
       subp.add_argument('-b', '--builder',
                         help='builder name to look up config from')
-      subp.add_argument('-m', '--master',
-                        help='master name to look up config from')
+      subp.add_argument('-m', '--main',
+                        help='main name to look up config from')
       subp.add_argument('-c', '--config',
                         help='configuration to analyze')
       subp.add_argument('--phase',
@@ -217,17 +217,17 @@ class MetaBuildWrapper(object):
                       default=self.default_config,
                       help='path to config file (default is %(default)s)')
     subp.add_argument('-i', '--internal', action='store_true',
-                      help='check internal masters also')
-    subp.add_argument('-m', '--master', action='append',
-                      help='master to audit (default is all non-internal '
-                           'masters in file)')
+                      help='check internal mains also')
+    subp.add_argument('-m', '--main', action='append',
+                      help='main to audit (default is all non-internal '
+                           'mains in file)')
     subp.add_argument('-u', '--url-template', action='store',
                       default='https://build.chromium.org/p/'
-                              '{master}/json/builders',
+                              '{main}/json/builders',
                       help='URL scheme for JSON APIs to buildbot '
                            '(default: %(default)s) ')
     subp.add_argument('-c', '--check-compile', action='store_true',
-                      help='check whether tbd and master-only bots actually'
+                      help='check whether tbd and main-only bots actually'
                            ' do compiles')
     subp.set_defaults(func=self.CmdAudit)
 
@@ -267,10 +267,10 @@ class MetaBuildWrapper(object):
   def CmdExport(self):
     self.ReadConfigFile()
     obj = {}
-    for master, builders in self.masters.items():
-      obj[master] = {}
+    for main, builders in self.mains.items():
+      obj[main] = {}
       for builder in builders:
-        config = self.masters[master][builder]
+        config = self.mains[main][builder]
         if not config:
           continue
 
@@ -284,7 +284,7 @@ class MetaBuildWrapper(object):
           if 'error' in args:
             continue
 
-        obj[master][builder] = args
+        obj[main][builder] = args
 
     # Dump object and trim trailing whitespace.
     s = '\n'.join(l.rstrip() for l in
@@ -372,13 +372,13 @@ class MetaBuildWrapper(object):
 
     # Build a list of all of the configs referenced by builders.
     all_configs = {}
-    for master in self.masters:
-      for config in self.masters[master].values():
+    for main in self.mains:
+      for config in self.mains[main].values():
         if isinstance(config, dict):
           for c in config.values():
-            all_configs[c] = master
+            all_configs[c] = main
         else:
-          all_configs[config] = master
+          all_configs[config] = main
 
     # Check that every referenced args file or config actually exists.
     for config, loc in all_configs.items():
@@ -420,9 +420,9 @@ class MetaBuildWrapper(object):
     # If we're checking the Chromium config, check that the 'chromium' bots
     # which build public artifacts do not include the chrome_with_codecs mixin.
     if self.args.config_file == self.default_config:
-      if 'chromium' in self.masters:
-        for builder in self.masters['chromium']:
-          config = self.masters['chromium'][builder]
+      if 'chromium' in self.mains:
+        for builder in self.mains['chromium']:
+          config = self.mains['chromium'][builder]
           def RecurseMixins(current_mixin):
             if current_mixin == 'chrome_with_codecs':
               errs.append('Public artifact builder "%s" can not contain the '
@@ -436,8 +436,8 @@ class MetaBuildWrapper(object):
           for mixin in self.configs[config]:
             RecurseMixins(mixin)
       else:
-        errs.append('Missing "chromium" master. Please update this '
-                    'proprietary codecs check with the name of the master '
+        errs.append('Missing "chromium" main. Please update this '
+                    'proprietary codecs check with the name of the main '
                     'responsible for public build artifacts.')
 
     if errs:
@@ -456,7 +456,7 @@ class MetaBuildWrapper(object):
     self.CmdValidate(print_ok=False)
 
     stats = OrderedDict()
-    STAT_MASTER_ONLY = 'Master only'
+    STAT_MASTER_ONLY = 'Main only'
     STAT_CONFIG_ONLY = 'Config only'
     STAT_TBD = 'Still TBD'
     STAT_GYP = 'Still GYP'
@@ -477,18 +477,18 @@ class MetaBuildWrapper(object):
 
     self.ReadConfigFile()
 
-    masters = self.args.master or self.masters
-    for master in sorted(masters):
-      url = self.args.url_template.replace('{master}', master)
+    mains = self.args.main or self.mains
+    for main in sorted(mains):
+      url = self.args.url_template.replace('{main}', main)
 
-      self.Print('Auditing %s' % master)
+      self.Print('Auditing %s' % main)
 
       MASTERS_TO_SKIP = (
         'client.skia',
         'client.v8.fyi',
         'tryserver.v8',
       )
-      if master in MASTERS_TO_SKIP:
+      if main in MASTERS_TO_SKIP:
         # Skip these bots because converting them is the responsibility of
         # those teams and out of scope for the Chromium migration to GN.
         self.Print('  Skipped (out of scope)')
@@ -497,14 +497,14 @@ class MetaBuildWrapper(object):
 
       INTERNAL_MASTERS = ('official.desktop', 'official.desktop.continuous',
                           'internal.client.kitchensync')
-      if master in INTERNAL_MASTERS and not self.args.internal:
+      if main in INTERNAL_MASTERS and not self.args.internal:
         # Skip these because the servers aren't accessible by default ...
         self.Print('  Skipped (internal)')
         self.Print('')
         continue
 
       try:
-        # Fetch the /builders contents from the buildbot master. The
+        # Fetch the /builders contents from the buildbot main. The
         # keys of the dict are the builder names themselves.
         json_contents = self.Fetch(url)
         d = json.loads(json_contents)
@@ -512,18 +512,18 @@ class MetaBuildWrapper(object):
         self.Print(str(e))
         return 1
 
-      config_builders = set(self.masters[master])
-      master_builders = set(d.keys())
-      both = master_builders & config_builders
-      master_only = master_builders - config_builders
-      config_only = config_builders - master_builders
+      config_builders = set(self.mains[main])
+      main_builders = set(d.keys())
+      both = main_builders & config_builders
+      main_only = main_builders - config_builders
+      config_only = config_builders - main_builders
       tbd = set()
       gyp = set()
       done = set()
-      notes = {builder: '' for builder in config_builders | master_builders}
+      notes = {builder: '' for builder in config_builders | main_builders}
 
       for builder in both:
-        config = self.masters[master][builder]
+        config = self.mains[main][builder]
         if config == 'tbd':
           tbd.add(builder)
         elif isinstance(config, dict):
@@ -541,13 +541,13 @@ class MetaBuildWrapper(object):
           else:
             done.add(builder)
 
-      if self.args.check_compile and (tbd or master_only):
-        either = tbd | master_only
+      if self.args.check_compile and (tbd or main_only):
+        either = tbd | main_only
         for builder in either:
-          notes[builder] = ' (' + self.CheckCompile(master, builder) +')'
+          notes[builder] = ' (' + self.CheckCompile(main, builder) +')'
 
-      if master_only or config_only or tbd or gyp:
-        PrintBuilders(STAT_MASTER_ONLY, master_only, notes)
+      if main_only or config_only or tbd or gyp:
+        PrintBuilders(STAT_MASTER_ONLY, main_only, notes)
         PrintBuilders(STAT_CONFIG_ONLY, config_only, notes)
         PrintBuilders(STAT_TBD, tbd, notes)
         PrintBuilders(STAT_GYP, gyp, notes)
@@ -570,7 +570,7 @@ class MetaBuildWrapper(object):
     build_dir = self.args.path[0]
 
     vals = self.DefaultVals()
-    if self.args.builder or self.args.master or self.args.config:
+    if self.args.builder or self.args.main or self.args.config:
       vals = self.Lookup()
       if vals['type'] == 'gn':
         # Re-run gn gen in order to ensure the config is consistent with the
@@ -638,10 +638,10 @@ class MetaBuildWrapper(object):
     return vals
 
   def ReadIOSBotConfig(self):
-    if not self.args.master or not self.args.builder:
+    if not self.args.main or not self.args.builder:
       return {}
     path = self.PathJoin(self.chromium_src_dir, 'ios', 'build', 'bots',
-                         self.args.master, self.args.builder + '.json')
+                         self.args.main, self.args.builder + '.json')
     if not self.Exists(path):
       return {}
 
@@ -670,7 +670,7 @@ class MetaBuildWrapper(object):
                  (self.args.config_file, e))
 
     self.configs = contents['configs']
-    self.masters = contents['masters']
+    self.mains = contents['mains']
     self.mixins = contents['mixins']
 
   def ReadIsolateMap(self):
@@ -685,38 +685,38 @@ class MetaBuildWrapper(object):
 
   def ConfigFromArgs(self):
     if self.args.config:
-      if self.args.master or self.args.builder:
-        raise MBErr('Can not specific both -c/--config and -m/--master or '
+      if self.args.main or self.args.builder:
+        raise MBErr('Can not specific both -c/--config and -m/--main or '
                     '-b/--builder')
 
       return self.args.config
 
-    if not self.args.master or not self.args.builder:
+    if not self.args.main or not self.args.builder:
       raise MBErr('Must specify either -c/--config or '
-                  '(-m/--master and -b/--builder)')
+                  '(-m/--main and -b/--builder)')
 
-    if not self.args.master in self.masters:
-      raise MBErr('Master name "%s" not found in "%s"' %
-                  (self.args.master, self.args.config_file))
+    if not self.args.main in self.mains:
+      raise MBErr('Main name "%s" not found in "%s"' %
+                  (self.args.main, self.args.config_file))
 
-    if not self.args.builder in self.masters[self.args.master]:
-      raise MBErr('Builder name "%s"  not found under masters[%s] in "%s"' %
-                  (self.args.builder, self.args.master, self.args.config_file))
+    if not self.args.builder in self.mains[self.args.main]:
+      raise MBErr('Builder name "%s"  not found under mains[%s] in "%s"' %
+                  (self.args.builder, self.args.main, self.args.config_file))
 
-    config = self.masters[self.args.master][self.args.builder]
+    config = self.mains[self.args.main][self.args.builder]
     if isinstance(config, dict):
       if self.args.phase is None:
         raise MBErr('Must specify a build --phase for %s on %s' %
-                    (self.args.builder, self.args.master))
+                    (self.args.builder, self.args.main))
       phase = str(self.args.phase)
       if phase not in config:
         raise MBErr('Phase %s doesn\'t exist for %s on %s' %
-                    (phase, self.args.builder, self.args.master))
+                    (phase, self.args.builder, self.args.main))
       return config[phase]
 
     if self.args.phase is not None:
       raise MBErr('Must not specify a build --phase for %s on %s' %
-                  (self.args.builder, self.args.master))
+                  (self.args.builder, self.args.main))
     return config
 
   def FlattenConfig(self, config):
@@ -751,7 +751,7 @@ class MetaBuildWrapper(object):
       if 'args_file' in mixin_vals:
         if vals['args_file']:
             raise MBErr('args_file specified multiple times in mixins '
-                        'for %s on %s' % (self.args.builder, self.args.master))
+                        'for %s on %s' % (self.args.builder, self.args.main))
         vals['args_file'] = mixin_vals['args_file']
       if 'gn_args' in mixin_vals:
         if vals['gn_args']:
@@ -1354,9 +1354,9 @@ class MetaBuildWrapper(object):
       raise MBErr('Error %s writing to the output path "%s"' %
                  (e, path))
 
-  def CheckCompile(self, master, builder):
+  def CheckCompile(self, main, builder):
     url_template = self.args.url_template + '/{builder}/builds/_all?as_text=1'
-    url = urllib2.quote(url_template.format(master=master, builder=builder),
+    url = urllib2.quote(url_template.format(main=main, builder=builder),
                         safe=':/()?=')
     try:
       builds = json.loads(self.Fetch(url))

@@ -42,7 +42,7 @@ import tempfile
 #
 # 1. On Linux, in the libxml2 repo directory:
 #    a. git remote update origin
-#    b. git checkout origin/master
+#    b. git checkout origin/main
 #
 #    This will be the upstream version of libxml you are rolling to.
 #
@@ -64,7 +64,7 @@ import tempfile
 # 3. On Mac, in the Chromium src directory:
 #    a. git fetch wip refs/wip/$USER/roll_libxml
 #    b. git checkout -b roll_libxml_nnnn FETCH_HEAD
-#    c. git branch --set-upstream-to origin/master
+#    c. git branch --set-upstream-to origin/main
 #    d. third_party/libxml/chromium/roll.py --mac
 #    e. Make and commit any final changes to README.chromium, BUILD.gn, etc.
 #    f. Complete the code review process as usual: git cl upload -d;
